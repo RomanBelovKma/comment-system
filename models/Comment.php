@@ -2,7 +2,7 @@
 
 namespace app\models;
 
-use Yii;
+use app\components\CommentTree;
 
 /**
  * This is the model class for table "comment".
@@ -44,18 +44,44 @@ class Comment extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'p_id' => 'P ID',
-            'text' => 'Text',
-            'author' => 'Author',
-            'editable_to' => 'Editable To',
+            'p_id' => 'ID родителя',
+            'text' => 'Текст',
+            'author' => 'Автор',
+            'editable_to' => 'Редактируемый до',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];
     }
 
-    public function beforeSave($insert)
+    /**
+     * @param bool $insert
+     * @return bool
+     */
+    public function beforeSave($insert): bool
     {
+        if (!$this->p_id) {
+            $this->p_id = 0;
+        }
         $this->editable_to = time() + (60 * 60);
         return parent::beforeSave($insert);
     }
+
+    /**
+     * @return string
+     * @throws \Throwable
+     */
+    public static function getTree()
+    {
+        return (new CommentTree())->getTree();
+    }
+
+    /**
+     * @param int $editableTo
+     * @return bool
+     */
+    public static function isEditable(int $editableTo): bool
+    {
+        return time() < $editableTo;
+    }
+
 }

@@ -3,129 +3,73 @@
 namespace app\controllers;
 
 use Yii;
-use yii\filters\AccessControl;
+use app\models\Comment;
 use yii\web\Controller;
 use yii\web\Response;
-use yii\filters\VerbFilter;
-use app\models\LoginForm;
-use app\models\ContactForm;
 
 class SiteController extends Controller
 {
     /**
-     * {@inheritdoc}
-     */
-    public function behaviors()
-    {
-        return [
-            'access' => [
-                'class' => AccessControl::class,
-                'only' => ['logout'],
-                'rules' => [
-                    [
-                        'actions' => ['logout'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                ],
-            ],
-            'verbs' => [
-                'class' => VerbFilter::class,
-                'actions' => [
-                    'logout' => ['post'],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function actions()
-    {
-        return [
-            'error' => [
-                'class' => 'yii\web\ErrorAction',
-            ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
-        ];
-    }
-
-    /**
      * Displays homepage.
      *
      * @return string
+     * @throws \Throwable
      */
     public function actionIndex()
     {
-        return $this->render('index');
-    }
-
-
-
-
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
-        }
-
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
-        }
-
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
+        $comments = (new Comment())->getTree();
+        return $this->render('index', [
+            'comments' => $comments
         ]);
     }
 
     /**
-     * Logout action.
-     *
-     * @return Response
+     * @return array
+     * @throws \Throwable
      */
-    public function actionLogout()
+    public function actionAddComment()
     {
-        Yii::$app->user->logout();
-
-        return $this->goHome();
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $comment = new Comment();
+        if ($comment->load(Yii::$app->request->post())) {
+            if ($comment->save()) {
+                $html = Comment::getTree();
+                return [
+                    'success' => true,
+                    'errors' => false,
+                    'html' => $html
+                ];
+            }
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
+        return [
+            'success' => false,
+            'errors' => $comment->firstErrors,
+            'html' => false
+        ];
     }
 
     /**
-     * Displays about page.
-     *
-     * @return string
+     * @return array
+     * @throws \Throwable
      */
-    public function actionAbout()
+    public function actionEditComment()
     {
-        return $this->render('about');
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $id = Yii::$app->request->post('edit-comment-id');
+        $comment = Comment::find()->where(['id' => $id])->one();
+
+        if ($comment->load(Yii::$app->request->post()) && $comment->save()) {
+            $html = Comment::getTree();
+            return [
+                'success' => true,
+                'errors' => false,
+                'html' => $html
+            ];
+        }
+        return [
+            'success' => false,
+            'errors' => $comment->firstErrors,
+            'html' => false
+        ];
     }
 }
